@@ -1,11 +1,11 @@
 
-from fastapi import APIRouter, HTTPException, Depends, Query
+from fastapi import APIRouter, HTTPException, Depends, Query, Path
 from typing import List, Dict, Optional
 from ..knowledge_graph.retriever import KnowledgeGraphRetriever
 from ..knowledge_graph.schema import NodeLabel, RelationshipType
 from ..logger import logger
 
-router = APIRouter(prefix="/graph", tags=["Knowledge Graph"])
+router = APIRouter(prefix="/graph", tags=["DSA Knowledge Graph"])
 
 def get_retriever() -> KnowledgeGraphRetriever:
     """Dependency to get retriever instance"""
@@ -14,121 +14,194 @@ def get_retriever() -> KnowledgeGraphRetriever:
         raise HTTPException(status_code=503, detail="Database connection not available")
     return retriever
 
-@router.get("/search")
+@router.get("/search", summary="Search nodes in the DSA knowledge graph")
 async def search_nodes(
-    name: Optional[str] = Query(None, description="Search by node name"),
-    label: Optional[NodeLabel] = Query(None, description="Filter by node label"),
-    limit: int = Query(10, description="Maximum results to return"),
+    name: Optional[str] = Query(None, description="Search by node name (partial match)"),
+    label: Optional[NodeLabel] = Query(None, description="Filter by node type"),
+    difficulty: Optional[str] = Query(None, description="Filter by difficulty level"),
+    limit: int = Query(10, ge=1, le=100, description="Maximum results to return"),
     retriever: KnowledgeGraphRetriever = Depends(get_retriever)
 ):
-    """Universal search endpoint - handles most search needs"""
+    """
+    Search for DSA concepts, topics, subtopics, or levels.
+    Supports partial name matching and filtering by type and difficulty.
+    """
     try:
-        results = retriever.search_nodes(name=name, label=label, limit=limit)
+        results = retriever.search_nodes(name=name, label=label, difficulty=difficulty, limit=limit)
         return {
+            "query": {
+                "name": name,
+                "label": label.value if label else None,
+                "difficulty": difficulty,
+                "limit": limit
+            },
             "count": len(results),
             "results": results
         }
     except Exception as e:
         logger.error(f"Error searching nodes: {e}")
-        raise HTTPException(status_code=500, detail="Search failed")
+        raise HTTPException(status_code=500, detail=f"Search failed: {str(e)}")
 
-@router.get("/node/{name}/context")
-async def get_node_context(
-    name: str, 
-    depth: int = Query(1, description="Relationship depth to explore"),
+@router.get("/node/{name}", summary="Get detailed information about a specific node")
+async def get_node_details(
+    name: str = Path(..., description="Exact node name"),
     retriever: KnowledgeGraphRetriever = Depends(get_retriever)
 ):
-    """Get node with its relationships - replaces multiple specific endpoints"""
+    """Get complete details of a specific DSA concept by exact name."""
     try:
-        result = retriever.get_node_context(name, depth)
-        if not result["node"]:
-            raise HTTPException(status_code=404, detail=f"Node not found: {name}")
-        return result
-    except HTTPException:
-        raise
-    except Exception as e:
-        logger.error(f"Error getting node context for {name}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get node context")
-
-@router.get("/learning-path")
-async def get_learning_path(
-    start: str = Query(..., description="Starting topic/concept"),
-    end: str = Query(..., description="Target topic/concept"),
-    max_depth: int = Query(5, description="Maximum path length"),
-    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
-):
-    """Get learning path between two concepts"""
-    try:
-        path = retriever.get_learning_path(start, end, max_depth)
-        if not path:
-            raise HTTPException(
-                status_code=404, 
-                detail=f"No learning path found from '{start}' to '{end}'"
-            )
+        result = retriever.get_node_details(name)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Node '{name}' not found")
+        
         return {
-            "path_length": len(path),
-            "path": path
+            "node": result
         }
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error finding path from {start} to {end}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to find learning path")
+        logger.error(f"Error getting node details for {name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get node details: {str(e)}")
 
-@router.get("/node/{name}/related")
-async def get_related_nodes(
-    name: str,
-    relationship: Optional[RelationshipType] = Query(None, description="Filter by relationship type"),
+@router.get("/topic/{name}/subtopics", summary="Get topic with its subtopics")
+async def get_topic_with_subtopics(
+    name: str = Path(..., description="Topic name (partial match)"),
     retriever: KnowledgeGraphRetriever = Depends(get_retriever)
 ):
-    """Get nodes related to the given node"""
+    """Get a topic along with all its subtopics."""
     try:
-        result = retriever.get_related_nodes(name, relationship)
-        if not result["node"]:
-            raise HTTPException(status_code=404, detail=f"Node not found: {name}")
+        result = retriever.get_topic_with_subtopics(name)
+        if not result:
+            raise HTTPException(status_code=404, detail=f"Topic containing '{name}' not found")
+        
         return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting related nodes for {name}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get related nodes")
+        logger.error(f"Error getting topic {name} with subtopics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get topic details: {str(e)}")
 
-# Convenience endpoints for common use cases
-@router.get("/topics")
-async def get_all_topics(
-    limit: int = Query(50, description="Maximum results"),
+@router.get("/prerequisites/{name}", summary="Get prerequisites for a concept")
+async def get_prerequisites(
+    name: str = Path(..., description="Node name (partial match)"),
     retriever: KnowledgeGraphRetriever = Depends(get_retriever)
 ):
-    """Get all topics - common use case"""
-    return await search_nodes(label=NodeLabel.TOPIC, limit=limit, retriever=retriever)
-
-@router.get("/topic/{name}")
-async def get_topic_details(
-    name: str,
-    include_subtopics: bool = Query(True, description="Include subtopics in response"),
-    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
-):
-    """Get topic with optional subtopics - replaces topic-specific endpoints"""
+    """Get all prerequisites needed before learning this concept."""
     try:
-        if include_subtopics:
-            # Get topic with its subtopics using context
-            result = retriever.get_related_nodes(name, RelationshipType.HAS_SUBTOPIC)
-            if not result["node"]:
-                raise HTTPException(status_code=404, detail=f"Topic not found: {name}")
-            
-            return {
-                "topic": result["node"],
-                "subtopics": result["related_nodes"]
-            }
-        else:
-            # Just get the topic
-            topics = retriever.search_nodes(name=name, label=NodeLabel.TOPIC, limit=1)
-            if not topics:
-                raise HTTPException(status_code=404, detail=f"Topic not found: {name}")
-            return {"topic": topics[0]}
-            
+        result = retriever.get_prerequisites(name)
+        if not result["node"]:
+            raise HTTPException(status_code=404, detail=f"Node containing '{name}' not found")
+        
+        return result
     except HTTPException:
         raise
     except Exception as e:
-        logger.error(f"Error getting topic {name}: {e}")
-        raise HTTPException(status_code=500, detail="Failed to get topic details")
+        logger.error(f"Error getting prerequisites for {name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get prerequisites: {str(e)}")
+
+@router.get("/dependents/{name}", summary="Get what depends on this concept")
+async def get_dependents(
+    name: str = Path(..., description="Node name (partial match)"),
+    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
+):
+    """Get all concepts that depend on (require) this concept as a prerequisite."""
+    try:
+        result = retriever.get_dependents(name)
+        if not result["node"]:
+            raise HTTPException(status_code=404, detail=f"Node containing '{name}' not found")
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting dependents for {name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get dependents: {str(e)}")
+
+@router.get("/learning-path", summary="Find learning path between concepts")
+async def get_learning_path(
+    start: str = Query(..., description="Starting concept name"),
+    end: str = Query(..., description="Target concept name"),
+    max_depth: int = Query(8, ge=1, le=15, description="Maximum path length to search"),
+    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
+):
+    """Find the shortest learning path from one concept to another."""
+    try:
+        result = retriever.get_learning_path(start, end, max_depth)
+        
+        if result["path_length"] == 0 and result["message"] != "Path found successfully":
+            if not result["start_node"] or not result["end_node"]:
+                raise HTTPException(status_code=404, detail=result["message"])
+            else:
+                raise HTTPException(status_code=404, detail=f"No learning path found from '{start}' to '{end}'")
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error finding learning path from {start} to {end}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to find learning path: {str(e)}")
+
+@router.get("/similar-difficulty/{name}", summary="Find concepts with similar difficulty")
+async def get_similar_difficulty(
+    name: str = Path(..., description="Node name (partial match)"),
+    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
+):
+    """Find other concepts with the same difficulty level."""
+    try:
+        result = retriever.get_related_by_difficulty(name)
+        if not result["node"]:
+            raise HTTPException(status_code=404, detail=f"Node containing '{name}' not found")
+        
+        return result
+    except HTTPException:
+        raise
+    except Exception as e:
+        logger.error(f"Error getting similar difficulty for {name}: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get similar concepts: {str(e)}")
+
+# Convenience endpoints
+@router.get("/topics", summary="Get all topics")
+async def get_all_topics(
+    limit: int = Query(50, ge=1, le=200, description="Maximum results"),
+    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
+):
+    """Get all available topics in the DSA knowledge graph."""
+    try:
+        results = retriever.search_nodes(label=NodeLabel.TOPIC, limit=limit)
+        return {
+            "count": len(results),
+            "topics": results
+        }
+    except Exception as e:
+        logger.error(f"Error getting all topics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get topics: {str(e)}")
+
+@router.get("/levels", summary="Get all difficulty levels")
+async def get_all_levels(
+    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
+):
+    """Get all difficulty levels available in the system."""
+    try:
+        levels = retriever.get_all_levels()
+        return {
+            "count": len(levels),
+            "levels": levels
+        }
+    except Exception as e:
+        logger.error(f"Error getting all levels: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get levels: {str(e)}")
+
+@router.get("/subtopics", summary="Get all subtopics")
+async def get_all_subtopics(
+    limit: int = Query(100, ge=1, le=500, description="Maximum results"),
+    retriever: KnowledgeGraphRetriever = Depends(get_retriever)
+):
+    """Get all available subtopics."""
+    try:
+        results = retriever.search_nodes(label=NodeLabel.SUBTOPIC, limit=limit)
+        return {
+            "count": len(results),
+            "subtopics": results
+        }
+    except Exception as e:
+        logger.error(f"Error getting all subtopics: {e}")
+        raise HTTPException(status_code=500, detail=f"Failed to get subtopics: {str(e)}")
