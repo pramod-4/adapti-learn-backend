@@ -1,0 +1,48 @@
+.
+├── README.md
+├── requirements-dev.txt
+└── src
+    ├── __init__.py
+    ├── main.py                  # Entry point / Orchestrator
+    
+    ├── auth/                    # Authentication & session management
+    │   ├── controller.py
+    │   ├── service.py
+    │   ├── model.py
+    │   └── __init__.py
+    
+    ├── database/                # DB connections
+    │   ├── postgres.py          # For user/cognitive data
+    │   ├── neo4j.py             # For Knowledge Graph
+    │   ├── core.py              # Shared database logic
+    │   └── __init__.py
+    
+    ├── cognitive/               # Cognitive Analyzer
+    │   ├── analyzer.py          # Profile classification (active/passive, fast/slow, etc.)
+    │   ├── model.py             # ML models if needed
+    │   └── __init__.py
+    
+    ├── knowledge_graph/         # Knowledge Graph logic
+    │   ├── builder.py           # Build KG from data
+    │   ├── retriever.py         # Query KG (Neo4j queries)
+    │   ├── schema.py            # Define nodes/edges
+    │   └── __init__.py
+    
+    ├── llm_core/                # Adaptive LLM integration
+    │   ├── interface.py         # Wrapper for GPT/Claude
+    │   ├── prompt_builder.py    # Adaptive prompt construction
+    │   └── __init__.py
+    
+    ├── entities/                # Core entities
+    │   ├── user.py              # User entity
+    │   ├── profile.py           # Cognitive profile entity
+    │   ├── knowledge.py         # Knowledge node/entity
+    │   └── __init__.py
+    
+    ├── feedback/                # Feedback & progress tracking
+    │   ├── tracker.py
+    │   ├── recommender.py       # Suggest next topics, quizzes
+    │   └── __init__.py
+    
+    ├── exceptions.py
+    ├── logging.py

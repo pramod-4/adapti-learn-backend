@@ -1,0 +1,10 @@
+{
+    "cSpell.words": [
+        "dotenv",
+        "uvicorn"
+    ],
+    "python.analysis.extraPaths": [
+        "./src/database"
+    ],
+    "python-envs.pythonProjects": []
+}
