@@ -1,23 +1,51 @@
-from fastapi import Request, HTTPException
-from fastapi.responses import JSONResponse
-from .logger import logger
-import traceback
 
-class CustomHTTPException(HTTPException):
-    def __init__(self, status_code: int, detail: str, error_code: str = None):
-        super().__init__(status_code=status_code, detail=detail)
-        self.error_code = error_code
+from typing import Any, Dict, Optional
 
-async def global_exception_handler(request: Request, exc: Exception):
-    """Global exception handler"""
-    logger.error(f"Unhandled exception: {exc}")
-    logger.error(traceback.format_exc())
+
+class TutoringSystemException(Exception):
+    """Base exception for the tutoring system"""
     
-    return JSONResponse(
-        status_code=500,
-        content={
-            "detail": "Internal server error",
-            "error_code": "INTERNAL_ERROR",
-            "path": str(request.url)
-        }
-    )
+    def __init__(self, message: str, details: Optional[Dict[str, Any]] = None):
+        self.message = message
+        self.details = details or {}
+        super().__init__(self.message)
+
+
+class AuthenticationError(TutoringSystemException):
+    """Authentication related errors"""
+    pass
+
+
+class AuthorizationError(TutoringSystemException):
+    """Authorization related errors"""
+    pass
+
+
+class DatabaseError(TutoringSystemException):
+    """Database related errors"""
+    pass
+
+
+class KnowledgeGraphError(TutoringSystemException):
+    """Knowledge graph related errors"""
+    pass
+
+
+class CognitiveAnalysisError(TutoringSystemException):
+    """Cognitive analysis related errors"""
+    pass
+
+
+class LLMError(TutoringSystemException):
+    """LLM related errors"""
+    pass
+
+
+class RateLimitError(TutoringSystemException):
+    """Rate limiting errors"""
+    pass
+
+
+class ValidationError(TutoringSystemException):
+    """Data validation errors"""
+    pass
