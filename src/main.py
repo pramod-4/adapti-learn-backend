@@ -1,16 +1,22 @@
 from fastapi import FastAPI , Depends
-from sqlalchemy import text
+from sqlalchemy import text , inspect
 from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine , get_db
 from .config import settings
+from .routers import auth
 
-# Auto-create database tables
-Base.metadata.create_all(bind=engine)
+
+
+
+
+# models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AdaptiLearn Backend")
 
 origins = [settings.FRONTEND_URL] if settings.FRONTEND_URL else ["*"]
+print(f"CORS Origins: {origins}")
+
 
 app.add_middleware(
     CORSMiddleware,
@@ -20,6 +26,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.include_router(auth.router)
 
 @app.get("/")
 def home():
@@ -32,3 +39,9 @@ def test_database_connection(db: Session = Depends(get_db)):
         return {"status": "✅ Database connected successfully"}
     except Exception as e:
         return {"status": "❌ Database connection failed", "error": str(e)}
+    
+@app.get("/check-tables")
+def check_tables():
+    inspector = inspect(engine)
+    tables = inspector.get_table_names()
+    return {"tables": tables}
