@@ -13,7 +13,12 @@ class UserBase(BaseModel):
 
 
 class UserCreate(UserBase):
-    password: str  # plain password, will be hashed before saving
+    password: str  
+    active_reflective: Literal["Active", "Reflective"]
+    sensing_intuitive: Literal["Sensing", "Intuitive"]
+    visual_verbal: Literal["Visual", "Verbal"]
+    sequential_global: Literal["Sequential", "Global"]
+
 
 
 class UserLogin(BaseModel):
@@ -98,25 +103,9 @@ class SubjectResponse(SubjectBase):
 # 4️⃣ NOTES SCHEMAS
 # ==========================================================
 
-class NotesBase(BaseModel):
-    subject_id: int
-    content: str
-    learning_style_used: str
-
-
-class NotesCreate(NotesBase):
+class GenerateNotesRequest(BaseModel):
     user_id: int
-
-
-class NotesResponse(NotesBase):
-    note_id: int
-    user_id: int
-    generated_at: datetime
-    model_version: Optional[str] = None
-
-    class Config:
-        orm_mode = True
-
+    subject: str = "Operating Systems"
 
 
 # ==========================================================

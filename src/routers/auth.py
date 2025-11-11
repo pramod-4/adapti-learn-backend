@@ -1,4 +1,3 @@
-from __future__ import annotations
 from fastapi import APIRouter, Depends, HTTPException, status
 from sqlalchemy.orm import Session
 from .. import models, schemas
@@ -9,7 +8,6 @@ router = APIRouter(
     prefix="/auth",
     tags=["Authentication"]
 )
-
 
 @router.post("/signup")
 def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
@@ -30,8 +28,29 @@ def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
     db.commit()
     db.refresh(new_user)
 
-    return {"message": "✅ User registered successfully", "user_id": new_user.user_id, "username": new_user.username}
+    learner_profile = models.LearnerProfile(
+        user_id=new_user.user_id,
+        active_reflective=user.active_reflective,
+        sensing_intuitive=user.sensing_intuitive,
+        visual_verbal=user.visual_verbal,
+        sequential_global=user.sequential_global,
+        parameters={}
+    )
 
+    db.add(learner_profile)
+    db.commit()
+
+    return {
+        "message": "✅ User registered successfully",
+        "user_id": new_user.user_id,
+        "username": new_user.username,
+        "learning_style": {
+            "active_reflective": user.active_reflective,
+            "sensing_intuitive": user.sensing_intuitive,
+            "visual_verbal": user.visual_verbal,
+            "sequential_global": user.sequential_global
+        }
+    }
 
 
 
@@ -50,8 +69,18 @@ def login(user: schemas.UserLogin, db: Session = Depends(get_db)):
             detail="Invalid email or password"
         )
 
+    learner_profile = db.query(models.LearnerProfile).filter(
+        models.LearnerProfile.user_id == db_user.user_id
+    ).first()
+
     return {
         "message": "✅ Login successful",
         "user_id": db_user.user_id,
-        "username": db_user.username
+        "username": db_user.username,
+        "learning_style": {
+            "active_reflective": learner_profile.active_reflective if learner_profile else None,
+            "sensing_intuitive": learner_profile.sensing_intuitive if learner_profile else None,
+            "visual_verbal": learner_profile.visual_verbal if learner_profile else None,
+            "sequential_global": learner_profile.sequential_global if learner_profile else None,
+        }
     }
