@@ -41,17 +41,17 @@ class UserResponse(UserBase):
 
 class ParameterData(BaseModel):
     """Represents the 10 behavioral parameters for learning style prediction."""
-    interaction_count: int
-    avg_session_length: int
-    time_visual_content: int
-    time_text_content: int
-    visual_text_ratio: float
-    quiz_score_visual: int
-    quiz_score_text: int
-    navigation_jump_count: int
-    reflection_time_avg: int
-    content_revisit_rate: float
-    theory_practice_ratio: float
+    interaction_count: int = 0
+    avg_session_length: int = 0
+    time_visual_content: int = 0
+    time_text_content: int = 0
+    visual_text_ratio: float = 0.0
+    quiz_score_visual: int = 0
+    quiz_score_text: int = 0
+    navigation_jump_count: int = 0
+    reflection_time_avg: int = 0
+    content_revisit_rate: float = 0.0
+    theory_practice_ratio: float = 0.0
     
 
 class LearnerProfileBase(BaseModel):

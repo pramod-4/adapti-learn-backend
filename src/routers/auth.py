@@ -3,6 +3,7 @@ from sqlalchemy.orm import Session
 from .. import models, schemas
 from ..database import get_db
 from ..utils import hash_password, verify_password
+from ..schemas import ParameterData
 
 router = APIRouter(
     prefix="/auth",
@@ -34,7 +35,7 @@ def signup(user: schemas.UserCreate, db: Session = Depends(get_db)):
         sensing_intuitive=user.sensing_intuitive,
         visual_verbal=user.visual_verbal,
         sequential_global=user.sequential_global,
-        parameters={}
+        parameters=ParameterData().model_dump()  # type: ignore
     )
 
     db.add(learner_profile)
