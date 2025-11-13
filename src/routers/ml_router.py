@@ -2,7 +2,7 @@ from fastapi import APIRouter, HTTPException, Depends, status
 from sqlalchemy.orm import Session
 from .. import models
 from ..database import get_db
-from ..schemas import ParameterData
+from ..schemas import PredictUpdateRequest
 import joblib
 import pandas as pd
 import os
@@ -52,10 +52,10 @@ FEATURES = [
 ]
 
 @router.post("/predict-update/{user_id}")
-def predict_and_update_learning_styles(user_id: int, payload: ParameterData, db: Session = Depends(get_db)):
+def predict_and_update_learning_styles(user_id: int, payload: PredictUpdateRequest, db: Session = Depends(get_db)):
     try:
-        df = pd.DataFrame([payload.model_dump()])  # ✅ Updated for Pydantic v2
-
+        df = pd.DataFrame([payload.parameters.model_dump()])  # ✅ Updated for Pydantic v2
+        print(df)
         raw_preds = {}
         for style, model in MODELS.items():
             if model is None:
@@ -101,6 +101,7 @@ def predict_and_update_learning_styles(user_id: int, payload: ParameterData, db:
                 "sensing_intuitive": learner.sensing_intuitive,
                 "visual_verbal": learner.visual_verbal,
                 "sequential_global": learner.sequential_global,
+                "parameters": learner.parameters or {},
             },
         }
 

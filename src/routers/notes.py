@@ -35,25 +35,118 @@ async def generate_notes(request: GenerateNotesRequest, db: Session = Depends(ge
 
         base_prompt = BASE_PROMPT.strip()
         style_sections = []
+
         if sensing_intuitive in STYLE_PROMPTS:
             style_sections.append(STYLE_PROMPTS[sensing_intuitive])
         if active_reflective in STYLE_PROMPTS:
             style_sections.append(STYLE_PROMPTS[active_reflective])
 
-        if style_sections:
-            final_prompt = f"{base_prompt}\n\n" + "\n\n".join(style_sections)
-        else:
-            final_prompt = base_prompt
+        final_prompt = f"{base_prompt}\n\n" + "\n\n".join(style_sections) if style_sections else base_prompt
 
         response = client.models.generate_content(
             model="gemini-2.5-flash",
             contents=final_prompt
         )
-        
+
+        raw = json.loads(str(response.text))
+
+        if isinstance(raw, dict) and len(raw) == 1:
+            generated = list(raw.values())[0]
+        else:
+            generated = raw
+
+
+        subject = (
+            db.query(models.SubjectHub)
+            .filter(models.SubjectHub.subject_id == request.subject_id)
+            .first()
+        )
+        if not subject:
+            raise HTTPException(status_code=404, detail="Subject not found")
+
+        existing_note = (
+            db.query(models.Notes)
+            .filter(
+                models.Notes.user_id == request.user_id,
+                models.Notes.subject_id == request.subject_id
+            )
+            .order_by(models.Notes.generated_at.desc())
+            .first()
+        )
+
+        ls = f"{learner.active_reflective},{learner.sequential_global},{learner.sensing_intuitive},{learner.visual_verbal}"
+
+        if existing_note:
+            existing_note.content = json.dumps(generated) #type: ignore
+            existing_note.learning_style_used = ls #type: ignore
+            existing_note.model_version = "gemini-2.5-flash" #type: ignore
+            db.commit()
+            db.refresh(existing_note)
+            return {
+                "note_id": existing_note.note_id,
+                "generated_notes": generated,
+                "message": "Existing note updated successfully"
+            }
+
+        new_note = models.Notes(
+            user_id=request.user_id,
+            subject_id=subject.subject_id,
+            content=json.dumps(generated),
+            learning_style_used=ls,
+            model_version="gemini-2.5-flash"
+        )
+
+        db.add(new_note)
+        db.commit()
+        db.refresh(new_note)
 
         return {
-            "generated_notes": json.loads(str(response.text))
+            "note_id": new_note.note_id,
+            "generated_notes": generated,
+            "message": "New note created successfully"
         }
 
     except Exception as e:
-        raise HTTPException(status_code=500, detail=f"Gemini API error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Generation or database error: {str(e)}")
+
+
+@router.get("/{user_id}/{subject}")
+async def get_notes_by_subject(user_id: int, subject: str, db: Session = Depends(get_db)):
+    try:
+        subject_obj = (
+            db.query(models.SubjectHub)
+            .filter(models.SubjectHub.title == subject)
+            .first()
+        )
+        if not subject_obj:
+            return { "notes": [] }
+
+        notes = (
+            db.query(models.Notes)
+            .filter(
+                models.Notes.user_id == user_id,
+                models.Notes.subject_id == subject_obj.subject_id
+            )
+            .order_by(models.Notes.generated_at.desc())
+            .all()
+        )
+
+        if not notes:
+            return { "notes": [] }
+
+        serialized = [
+            {
+                "note_id": n.note_id,
+                "subject_id": n.subject_id,
+                "learning_style_used": n.learning_style_used,
+                "model_version": n.model_version,
+                "generated_at": n.generated_at,
+                "content": json.loads(str(n.content))  #type: ignore
+            }
+            for n in notes
+        ]
+
+        return { "notes": serialized }
+
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Error fetching notes: {str(e)}")

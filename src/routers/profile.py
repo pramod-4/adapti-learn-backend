@@ -44,3 +44,23 @@ def update_learning_style(
         "message": "✅ Learning style updated successfully",
         "updated_profile": learner_profile
     }
+
+@router.get("/current-parameters/{user_id}")
+def get_current_parameters(user_id: int, db: Session = Depends(get_db)):
+    learner = (
+        db.query(models.LearnerProfile)
+        .filter(models.LearnerProfile.user_id == user_id)
+        .first()
+    )
+
+    if not learner:
+        raise HTTPException(status_code=404, detail="Learner profile not found")
+
+    return {
+        "user_id": learner.user_id,
+        "active_reflective": learner.active_reflective,
+        "sensing_intuitive": learner.sensing_intuitive,
+        "visual_verbal": learner.visual_verbal,
+        "sequential_global": learner.sequential_global,
+        "parameters": learner.parameters or {}
+    }

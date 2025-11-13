@@ -40,7 +40,7 @@ class UserResponse(UserBase):
 # ==========================================================
 
 class ParameterData(BaseModel):
-    """Represents the 10 behavioral parameters for learning style prediction."""
+    
     interaction_count: int = 0
     avg_session_length: int = 0
     time_visual_content: int = 0
@@ -52,6 +52,14 @@ class ParameterData(BaseModel):
     reflection_time_avg: int = 0
     content_revisit_rate: float = 0.0
     theory_practice_ratio: float = 0.0
+    
+class PredictUpdateRequest(BaseModel):
+    active_reflective: str
+    sensing_intuitive: str
+    visual_verbal: str
+    sequential_global: str
+    parameters: ParameterData
+
     
 
 class LearnerProfileBase(BaseModel):
@@ -105,7 +113,7 @@ class SubjectResponse(SubjectBase):
 
 class GenerateNotesRequest(BaseModel):
     user_id: int
-    subject: str = "Operating Systems"
+    subject_id: int
 
 
 # ==========================================================

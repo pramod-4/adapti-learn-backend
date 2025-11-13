@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine , get_db
 from .config import settings
-from .routers import auth , profile , notes , ml_router
+from .routers import auth , profile , notes , ml_router , subjects
 
 
 
@@ -30,6 +30,7 @@ app.include_router(auth.router)
 app.include_router(profile.router)
 app.include_router(notes.router)
 app.include_router(ml_router.router)
+app.include_router(subjects.router)
 
 @app.get("/")
 def home():
