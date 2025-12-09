@@ -26,7 +26,6 @@ def update_learning_style(
             detail="Learner profile not found for this user"
         )
 
-    # ✅ Use setattr() to safely assign values and avoid type checking issues
     setattr(learner_profile, "active_reflective", updated_style.active_reflective)
     setattr(learner_profile, "sensing_intuitive", updated_style.sensing_intuitive)
     setattr(learner_profile, "visual_verbal", updated_style.visual_verbal)

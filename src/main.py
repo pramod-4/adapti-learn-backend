@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine , get_db
 from .config import settings
-from .routers import auth , profile , notes , ml_router , subjects
+from .routers import auth , profile , notes , ml_router , subjects , chat
 
 
 
@@ -14,7 +14,8 @@ from .routers import auth , profile , notes , ml_router , subjects
 
 app = FastAPI(title="AdaptiLearn Backend")
 
-origins = [settings.FRONTEND_URL] if settings.FRONTEND_URL else ["*"]
+# origins = [settings.FRONTEND_URL] if settings.FRONTEND_URL else ["*"]
+origins = ["*"]
 print(f"CORS Origins: {origins}")
 
 
@@ -31,6 +32,7 @@ app.include_router(profile.router)
 app.include_router(notes.router)
 app.include_router(ml_router.router)
 app.include_router(subjects.router)
+app.include_router(chat.router)
 
 @app.get("/")
 def home():

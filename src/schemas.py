@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional, Literal
+from typing import Optional, Literal , List
 from datetime import datetime
 
 
@@ -59,8 +59,7 @@ class PredictUpdateRequest(BaseModel):
     visual_verbal: str
     sequential_global: str
     parameters: ParameterData
-
-    
+  
 
 class LearnerProfileBase(BaseModel):
     """Represents the 4 core learning style dimensions + parameters."""
@@ -82,6 +81,41 @@ class LearnerProfileResponse(LearnerProfileBase):
 
     class Config:
         orm_mode = True
+        
+        
+class SessionCognitiveState(BaseModel):
+    instruction_flow: Literal[
+        "step_by_step",
+        "guided",
+        "exploratory",
+        "high_level"
+    ]
+
+    complexity_tolerance: Literal[
+        "low",
+        "medium",
+        "high"
+    ]
+
+    pace_preference: Literal[
+        "slow",
+        "moderate",
+        "fast"
+    ]
+
+    input_preference: Literal[
+        "example_first",
+        "theory_first",
+        "analogy_based"
+    ]
+
+    engagement: Optional[Literal[
+        "low",
+        "medium",
+        "high"
+    ]] = None
+
+    confidence: float
 
 
 
@@ -120,24 +154,21 @@ class GenerateNotesRequest(BaseModel):
 # 5️⃣ CHAT HISTORY SCHEMAS
 # ==========================================================
 
-class ChatMessageBase(BaseModel):
-    subject_id: Optional[int]
+class ChatHistoryItem(BaseModel):
+    role: Literal["user", "assistant"]
+    content: str
+
+
+class ChatRequest(BaseModel):
+    user_id: int
     message: str
-    response: str
-    learning_style_used: str
+    history: List[ChatHistoryItem] = []
+    subject_id: Optional[int] = None
 
 
-class ChatMessageCreate(ChatMessageBase):
-    user_id: int
-
-
-class ChatMessageResponse(ChatMessageBase):
-    chat_id: int
-    user_id: int
-    timestamp: datetime
-
-    class Config:
-        orm_mode = True
+class ChatResponse(BaseModel):
+    reply: str
+    session_state: SessionCognitiveState
 
 
 
