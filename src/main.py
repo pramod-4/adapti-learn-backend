@@ -5,12 +5,14 @@ from fastapi.middleware.cors import CORSMiddleware
 from .database import Base, engine , get_db
 from .config import settings
 from .routers import auth , profile , notes , ml_router , subjects , chat
+from . import models
 
 
 
 
 
-# models.Base.metadata.create_all(bind=engine)
+
+models.Base.metadata.create_all(bind=engine)
 
 app = FastAPI(title="AdaptiLearn Backend")
 

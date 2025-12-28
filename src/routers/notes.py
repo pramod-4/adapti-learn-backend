@@ -51,7 +51,7 @@ async def generate_notes(request: GenerateNotesRequest, db: Session = Depends(ge
         raw = json.loads(str(response.text))
 
         if isinstance(raw, dict) and len(raw) == 1:
-            generated = list(raw.values())[0]
+            generated = list(raw.values())
         else:
             generated = raw
 
@@ -115,11 +115,11 @@ async def get_notes_by_subject(user_id: int, subject: str, db: Session = Depends
     try:
         subject_obj = (
             db.query(models.SubjectHub)
-            .filter(models.SubjectHub.title == subject)
+            #.filter(models.SubjectHub.title == subject)
             .first()
         )
         if not subject_obj:
-            return { "notes": [] }
+            return { "notes": ["subject not found"] }
 
         notes = (
             db.query(models.Notes)
@@ -132,7 +132,7 @@ async def get_notes_by_subject(user_id: int, subject: str, db: Session = Depends
         )
 
         if not notes:
-            return { "notes": [] }
+            return { "notes": ["notes not found"] }
 
         serialized = [
             {
@@ -141,7 +141,9 @@ async def get_notes_by_subject(user_id: int, subject: str, db: Session = Depends
                 "learning_style_used": n.learning_style_used,
                 "model_version": n.model_version,
                 "generated_at": n.generated_at,
-                "content": json.loads(str(n.content))  #type: ignore
+                "content": (
+            lambda c: c[0] if isinstance(c, list) and len(c) == 1 and isinstance(c[0], list) else c
+        )(json.loads(n.content))  #type: ignore
             }
             for n in notes
         ]
